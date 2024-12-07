@@ -173,19 +173,20 @@ class FedNHAdpServer(FedUHServer):
                                    gradients_list]
             thetas = torch.tensor([torch.arccos(cos).item() for cos in cosin_similary_list])
 
-            if round == 1:
-                self.thetas = thetas
-            else:
-                self.thetas = self.thetas * (round - 1) / round + thetas * 1 / round
-            print("---1--- thetas smooth:", self.thetas)
+            # if round == 1:
+            #     self.thetas = thetas
+            # else:
+            #     self.thetas = self.thetas * (round-1)/round + thetas * 1/round
+            # print("---1--- thetas smooth:", self.thetas)
 
             def gompertz_func(theta, alpha=5.):
                 return alpha * (1 - np.exp(-np.exp(-alpha * (theta - 1))))
 
-            re_weights = np.exp(gompertz_func(self.thetas, alpha=5.))
+            # re_weights = np.exp(gompertz_func(self.thetas, alpha=5.))
+            re_weights = np.exp(gompertz_func(thetas, alpha=5.))
             # re_weights = gompertz_func(thetas, alpha=5.)
             # re_weights = np.power(gompertz_func(thetas, alpha=5.), 1/round)
-            # re_weights = np.power(gompertz_func(thetas, alpha=5.), 1/2)
+            # re_weights = np.power(gompertz_func(thetas, alpha=5.), 1/8)
             re_weights = re_weights / torch.sum(re_weights)
             print("---2--- re_weights:", re_weights)
             assert torch.all(re_weights >= 0), "weights should be non-negative values"
@@ -254,8 +255,8 @@ class FedNHAdpServer(FedUHServer):
             # active clients download weights from the server
             tqdm.write(f"Round:{r} - Active clients:{self.active_clients_indicies}:")
             # self.active_clients_indicies = np.array([5, 15, 25, 35, 45, 55, 65, 76, 85, 95])
-            self.active_clients_indicies = np.arange(100)
-            print("*** CHECK active_clients_indicies : ", self.active_clients_indicies)
+            # self.active_clients_indicies = np.arange(100)
+            # print("*** CHECK active_clients_indicies : ", self.active_clients_indicies)
             for cid in self.active_clients_indicies:
                 client = self.clients_dict[cid]
                 client.set_params(self.server_model_state_dict, self.exclude_layer_keys)
@@ -265,7 +266,7 @@ class FedNHAdpServer(FedUHServer):
             client_uploads = []
             for cid in self.active_clients_indicies:
                 client = self.clients_dict[cid]
-                client.training(r, client.client_config['num_epochs'])
+                client.training(r, kwargs['num_epochs'])
                 client_uploads.append(client.upload())
             train_time = time.time() - train_start
             print(f" Training time:{train_time:.3f} seconds")

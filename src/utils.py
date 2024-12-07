@@ -127,6 +127,7 @@ class Initializer:
                     initialization(m.bias.data)
                 except:
                     pass
+
         model.apply(weights_init)
 
 
@@ -305,7 +306,8 @@ def sampler(dataset, num_clients, partition, seed=None, minsize=10, **kwargs):
             assigned_classes_per_client = kwargs['assigned_classes_per_client']
             assert type(assigned_clients_per_class) == list, "assigned_clients_per_class has to a list"
             assert type(assigned_classes_per_client) == list, "assigned_classes_per_client has to a list"
-            assert type(assigned_classes_per_client[0]) == set, "the elements of assigned_classes_per_client has to a set"
+            assert type(
+                assigned_classes_per_client[0]) == set, "the elements of assigned_classes_per_client has to a set"
             cid_idxlst_dict = {cid: [] for cid in range(num_clients)}
             num_classes_per_client = [len(s) for s in assigned_classes_per_client]
         else:
@@ -376,7 +378,7 @@ def sampler(dataset, num_clients, partition, seed=None, minsize=10, **kwargs):
                 idx_list = [np.where(ylabels == i)[0] for i in range(num_classes)]
                 cls_amount = [len(idx_list[i]) for i in range(num_classes)]
                 cid_idxlst_dict = {cid: [] for cid in range(num_clients)}
-                while(np.sum(clnt_data_list) != 0):
+                while (np.sum(clnt_data_list) != 0):
                     curr_clnt = np.random.randint(num_clients)
                     # If current node is full resample a client
                     print('Remaining Data: %d' % np.sum(clnt_data_list))
@@ -416,7 +418,8 @@ def sampler(dataset, num_clients, partition, seed=None, minsize=10, **kwargs):
                     # if number of samples in client j is already larger than the threshold num_samples / num_clients
                     # then the client won't contain any new class including the current class k
                     proportions = np.array(
-                        [p * (len(allocated_idxs) < num_samples / num_clients) for p, allocated_idxs in zip(proportions, batch_idxs)])
+                        [p * (len(allocated_idxs) < num_samples / num_clients) for p, allocated_idxs in
+                         zip(proportions, batch_idxs)])
                     proportions = proportions / proportions.sum()
                     stats_dict[f'proportions_{k}'] = proportions
                     proportions_to_num = (np.cumsum(proportions) * len(idx_k)).astype(int)[:-1]
@@ -451,20 +454,19 @@ def sampler(dataset, num_clients, partition, seed=None, minsize=10, **kwargs):
                                        for allocated_idxs in batch_idxs])
                 if min(allocated_classes) <= 1:
                     resample = True
-                    print(" [Info - Dirichlet Sampling]: At leaset one client only has one class label. Perform Resampling...")
+                    print(
+                        " [Info - Dirichlet Sampling]: At leaset one client only has one class label. Perform Resampling...")
                 else:
                     resample = False
             cid_idxlst_dict = {cid: [] for cid in range(num_clients)}
             for cid in range(num_clients):
                 np.random.shuffle(batch_idxs[cid])
                 cid_idxlst_dict[cid] = batch_idxs[cid]
-            clients_len_data = [len(cid_idxlst_dict[c]) for c in cid_idxlst_dict.keys()]
-            print("*** CHECK CLIENTS LEN DATA *** : ", clients_len_data)
         stats_dict['num_classes'] = num_classes
-        print("*** CHECK CLIENTS stats_dict *** : ", stats_dict.keys())
     elif partition == 'shards':
         num_shards_per_client = kwargs['num_shards_per_client']
-        dict_users, stats_dict['rand_set_all'] = sshards(dataset, num_clients, num_shards_per_client, server_data_ratio=0.0, rand_set_all=[])
+        dict_users, stats_dict['rand_set_all'] = sshards(dataset, num_clients, num_shards_per_client,
+                                                         server_data_ratio=0.0, rand_set_all=[])
         cid_idxlst_dict = {i: dict_users[i].tolist() for i in range(num_clients)}
     else:
         raise ValueError(f"partition:{partition} is not recognized.")
@@ -506,7 +508,7 @@ def sampler_reuse(dataset, stats_dict, **kwargs):
             cid: batch_idxs[cid].tolist() for cid in range(num_clients)}
     elif partition == 'iid-diff-size':
         proportions_to_num = (
-            np.cumsum(stats_dict['proportions']) * len(idxs)).astype(int)[:-1]
+                                     np.cumsum(stats_dict['proportions']) * len(idxs)).astype(int)[:-1]
         batch_idxs = np.split(idxs, proportions_to_num)
         cid_idxlst_dict = {i: batch_idxs[i].tolist()
                            for i in range(num_clients)}
@@ -536,7 +538,7 @@ def sampler_reuse(dataset, stats_dict, **kwargs):
             proportions_to_num = (np.cumsum(proportions) *
                                   len(idx_k)).astype(int)[:-1]
             batch_idxs = [allocated_idxs + idx.tolist() for allocated_idxs,
-                          idx in zip(batch_idxs, np.split(idx_k, proportions_to_num))]
+            idx in zip(batch_idxs, np.split(idx_k, proportions_to_num))]
 
         cid_idxlst_dict = {cid: [] for cid in range(num_clients)}
         for cid in range(num_clients):
@@ -593,11 +595,11 @@ def sshards(dataset, num_users, shard_per_user, server_data_ratio, rand_set_all=
     test = []
     for key, value in dict_users.items():
         x = np.unique(dataset.targets[value])
-        assert(len(x)) <= shard_per_user
+        assert (len(x)) <= shard_per_user
         test.append(value)
     test = np.concatenate(test)
-    assert(len(test) == len(dataset))
-    assert(len(set(list(test))) == len(dataset))
+    assert (len(test) == len(dataset))
+    assert (len(set(list(test))) == len(dataset))
 
     if server_data_ratio > 0.0:
         dict_users['server'] = set(np.random.choice(all_idxs, int(len(dataset) * server_data_ratio), replace=False))
@@ -639,7 +641,6 @@ def visualize_sampling(dataset_per_client_dict, num_classes, figsize=(10, 8), **
 
 def heatmap(data, x_labels, y_labels, ax=None,
             cbar_kw={}, cbarlabel="", **kwargs):
-
     if not ax:
         ax = plt.gca()
 
@@ -650,7 +651,7 @@ def heatmap(data, x_labels, y_labels, ax=None,
     cbar = ax.figure.colorbar(im, ax=ax, **cbar_kw)
     cbar.ax.set_ylabel(cbarlabel, rotation=-90, va="bottom")
 
-#     # Show all ticks and label them with the respective list entries.
+    #     # Show all ticks and label them with the respective list entries.
     ax.set_xticks(np.arange(data.shape[0]))
     ax.set_xticklabels(x_labels)
     ax.set_xlabel("Client ID")
@@ -669,7 +670,6 @@ def heatmap(data, x_labels, y_labels, ax=None,
 def annotate_heatmap(im, data=None, valfmt="{x:.2f}",
                      textcolors=("black", "white"),
                      threshold=None, **textkw):
-
     if not isinstance(data, (list, np.ndarray)):
         data = im.get_array()
 
@@ -734,7 +734,8 @@ class Spiral(Dataset):
         self.targets = None
         for i in range(k):
             r = torch.linspace(1, 10, n_lst[i])  # radius
-            t = torch.linspace(i / k * 2 * torch.pi, (i + 1) / k * 2 * torch.pi, n_lst[i]) + torch.rand(n_lst[i]) * sigma
+            t = torch.linspace(i / k * 2 * torch.pi, (i + 1) / k * 2 * torch.pi, n_lst[i]) + torch.rand(
+                n_lst[i]) * sigma
             x = r * torch.sin(t)
             y = r * torch.cos(t)
             samples = torch.stack((x, y), 1)
@@ -756,13 +757,9 @@ class Spiral(Dataset):
         return self.data[idx], self.targets[idx]
 
 
-
-
-
 """
 TinyImageNet Dataset
 """
-
 
 EXTENSION = 'JPEG'
 NUM_IMAGES_PER_CLASS = 500
@@ -887,6 +884,7 @@ def get_datasets(datasetname, **kwargs):
                                                      download=True, transform=transform)
         testset = torchvision.datasets.FashionMNIST(root='~/data', train=False,
                                                     download=True, transform=transform)
+
     elif datasetname == "Cifar10":
         transform_train = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
@@ -909,6 +907,7 @@ def get_datasets(datasetname, **kwargs):
                                                download=True, transform=transform_test)
         trainset.targets = torch.tensor(trainset.targets)
         testset.targets = torch.tensor(testset.targets)
+
     elif datasetname == 'Cifar100':
         transform_train = transforms.Compose([transforms.RandomCrop(32, padding=4),
                                               transforms.RandomHorizontalFlip(),
@@ -962,6 +961,7 @@ def get_datasets(datasetname, **kwargs):
                                                download=True, transform=transform_test)
         trainset.targets = torch.tensor(trainset.targets)
         testset.targets = torch.tensor(testset.targets)
+
     elif datasetname == "GanEnhancedCifar10":
         trainset = GanEnhancedCifar10(
             kwargs['generator_path'],
@@ -975,6 +975,21 @@ def get_datasets(datasetname, **kwargs):
         testset = torchvision.datasets.CIFAR10(root='~/data', train=False,
                                                download=True, transform=transform)
         testset.targets = torch.tensor(testset.targets)
+
+    elif datasetname == "BrainMRI":
+        import sys
+        sys.path.append("../")
+        from data.dataset import BrainTumorDataset
+        train_transform = transforms.Compose([transforms.Resize((128, 128)),
+                                              transforms.RandomHorizontalFlip(),
+                                              transforms.ToTensor(),
+                                              ])
+        test_transform = transforms.Compose([transforms.Resize((128, 128)),
+                                             transforms.ToTensor(),
+                                             ])
+        trainset = BrainTumorDataset(root_dir="../data/BrainMRI/Training", transform=train_transform)
+        testset = BrainTumorDataset(root_dir="../data/BrainMRI/Testing", transform=test_transform)
+
     else:
         raise ValueError(f"Unrecognized dataset:{datasetname}")
 

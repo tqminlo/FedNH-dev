@@ -19,6 +19,7 @@ from src.flbase.strategies.FedPer import FedPerClient, FedPerServer
 from src.flbase.strategies.CReFF import CReFFClient, CReFFServer
 from src.flbase.strategies.FedNHAdp import FedNHAdpClient, FedNHAdpServer
 from src.flbase.strategies.FedNHCS import FedNHCSClient, FedNHCSServer
+from src.flbase.strategies.FedNHCS2 import FedNHCS2Client, FedNHCS2Server
 
 global wandb_installed
 try:
@@ -90,6 +91,12 @@ def run(args):
         hyper_params = f"FedNH_smoothing:{args.FedNH_smoothing}_FedNH_client_adv_prototype_agg:{args.FedNH_client_adv_prototype_agg}"
     elif args.strategy == 'FedNHCS':
         ClientCstr, ServerCstr = FedNHCSClient, FedNHCSServer
+        server_config['FedNH_smoothing'] = args.FedNH_smoothing
+        server_config['FedNH_server_adv_prototype_agg'] = args.FedNH_server_adv_prototype_agg
+        client_config['FedNH_client_adv_prototype_agg'] = args.FedNH_client_adv_prototype_agg
+        hyper_params = f"FedNH_smoothing:{args.FedNH_smoothing}_FedNH_client_adv_prototype_agg:{args.FedNH_client_adv_prototype_agg}"
+    elif args.strategy == 'FedNHCS2':
+        ClientCstr, ServerCstr = FedNHCS2Client, FedNHCS2Server
         server_config['FedNH_smoothing'] = args.FedNH_smoothing
         server_config['FedNH_server_adv_prototype_agg'] = args.FedNH_server_adv_prototype_agg
         client_config['FedNH_client_adv_prototype_agg'] = args.FedNH_client_adv_prototype_agg
@@ -180,7 +187,7 @@ def run(args):
         for k in client_config.keys():
             if args.strategy in k:
                 print(' ', k, ":", client_config[k])
-        server.run(filename=path + '_best_global_model.pkl', use_wandb=use_wandb, global_seed=args.global_seed)
+        server.run(filename=path + '_best_global_model.pkl', use_wandb=use_wandb, global_seed=args.global_seed, num_epochs=args.num_epochs)
         server.save(filename=path + '_final_server_obj.pkl', keep_clients_model=args.keep_clients_model)
     else:
         expected_num_rounds = int(server_config['num_rounds'] * server_config['participate_ratio'])
@@ -192,7 +199,8 @@ def run(args):
             client.set_params(init_weight, exclude_keys=set())
             for r in range(1, expected_num_rounds + 1):
                 setup_seed(r + args.global_seed)
-                client.training(r, client.client_config['num_epochs'])
+                # client.training(r, client.client_config['num_epochs'])
+                client.training(r, args.num_epochs)
                 client.testing(r, global_testloader)
                 print(f"Round: {r}/{expected_num_rounds}", client.test_acc_dict[r]['acc_by_criteria'])
             client.model = None

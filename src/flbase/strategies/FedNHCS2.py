@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from sklearn.utils import shuffle
 
 
-class FedNHCSClient(FedUHClient):
+class FedNHCS2Client(FedUHClient):
     def __init__(self, criterion, trainset, testset, client_config, cid, device, **kwargs):
         super().__init__(criterion, trainset, testset,
                          client_config, cid, device, **kwargs)
@@ -102,7 +102,7 @@ class FedNHCSClient(FedUHClient):
             return self.new_state_dict, self._estimate_prototype()
 
 
-class FedNHCSServer(FedUHServer):
+class FedNHCS2Server(FedUHServer):
     def __init__(self, server_config, clients_dict, exclude, **kwargs):
         super().__init__(server_config, clients_dict, exclude, **kwargs)
         if len(self.exclude_layer_keys) > 0:
@@ -191,21 +191,15 @@ class FedNHCSServer(FedUHServer):
             cosin_similary_list = [torch.nn.CosineSimilarity(dim=0)(gradient_global, grad_k) for grad_k in gradients_list]
             print("---check cosin_similary_list : ", cosin_similary_list)
             if round == 1:
-                self.top10_first10round = np.zeros(shape=(10,))
+                self.top20_first10round = np.zeros(shape=(20,))
             if round <= 10:
-                idx_max = np.argmax(cosin_similary_list)
-                self.idx_client_max = self.active_clients_indicies[idx_max]
-                print("---check idx_client_max : ", self.idx_client_max)
-                self.top10_first10round[round-1] = self.idx_client_max
-            else:
-                mapping = {k: self.top10_first10round[i] for i, k in enumerate(sorted(cosin_similary_list, reverse=True))}
-                sort_idx = [mapping[i] for i in cosin_similary_list]
-                self.hold5 = np.array(sort_idx[:5])
-                self.hold5p2 = np.array(sort_idx[5:])
-                print("---check top10_first10round : ", self.top10_first10round)
-                print("---check sort_idx : ", sort_idx)
-                print("---check hold5 : ", self.hold5)
-                print("---check hold5p2 : ", self.hold5p2)
+                sorted_idx = [x for _, x in sorted(zip(cosin_similary_list, self.active_clients_indicies), reverse=True)]
+                print("---check sorted_idx : ", sorted_idx)
+                self.top20_first10round[2*(round-1)] = sorted_idx[0]
+                self.top20_first10round[2*(round-1)+1] = sorted_idx[1]
+
+            else: # round == 11
+                print("---check top20 : ", self.top20_first10round)
 
     def run(self, **kwargs):
         if self.server_config['use_tqdm']:
@@ -217,32 +211,13 @@ class FedNHCSServer(FedUHServer):
             ####### new CS here :
             if r <= 10:
                 self.active_clients_indicies = np.arange((r-1)*10, r*10)
-            elif r < 25:
-                self.active_clients_indicies = self.top10_first10round
-            # elif r < 40:
-            #     setup_seed(r + kwargs['global_seed'])
-            #     selected_indices = self.select_clients(0.05)
-            #     if self.server_config['drop_ratio'] > 0:
-            #         # mimic the stragler issues; simply drop them
-            #         self.active_clients_indicies = np.random.choice(selected_indices, int(
-            #             len(selected_indices) * (1 - self.server_config['drop_ratio'])), replace=False)
-            #     else:
-            #         self.active_clients_indicies = selected_indices
-            #     self.active_clients_indicies = np.concatenate([self.hold5, self.active_clients_indicies], axis=0)
-            # elif r < 50:
-            #     setup_seed(r + kwargs['global_seed'])
-            #     selected_indices = self.select_clients(0.05)
-            #     if self.server_config['drop_ratio'] > 0:
-            #         # mimic the stragler issues; simply drop them
-            #         self.active_clients_indicies = np.random.choice(selected_indices, int(
-            #             len(selected_indices) * (1 - self.server_config['drop_ratio'])), replace=False)
-            #     else:
-            #         self.active_clients_indicies = selected_indices
-            #     self.active_clients_indicies = np.concatenate([self.hold5p2, self.active_clients_indicies], axis=0)
+            elif r < 20:
+                rand = shuffle(self.top20_first10round)
+                self.active_clients_indicies = rand[:10]
             else:
                 setup_seed(r + kwargs['global_seed'])
                 selected_indices = self.select_clients(self.server_config['participate_ratio'])
-                rand = shuffle(self.top10_first10round)
+                rand = shuffle(self.top20_first10round)
                 top2_choice = rand[:2]
                 self.active_clients_indicies = np.concatenate([top2_choice, self.active_clients_indicies], axis=0)
                 if top2_choice[0] not in selected_indices:
