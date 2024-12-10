@@ -166,42 +166,9 @@ class FedNHCS2Server(FedUHServer):
             # normalize prototype again
             self.server_model_state_dict['prototype'].copy_(F.normalize(temp, dim=1))
 
-        if round <= 11:
-            gradients_list = []
-            for idx, (client_state_dict, prototype_dict) in enumerate(client_uploads):
-                gradient = []
-                for state_key in client_state_dict.keys():
-                    if state_key not in self.exclude_layer_keys:
-                        g = client_state_dict[state_key] - self.server_model_state_dict[state_key]
-                        gradient.append(g.cpu().numpy().flatten())
-                gradient = np.concatenate(gradient, axis=0)
-                gradients_list.append(gradient)
-                # print("---check gradient shape : ", gradient.shape)
-
-            weights = torch.tensor([1] * 10)
-            # print("---check weights : ", weights)
-            weights = weights / torch.sum(weights)
-            weights_2d = weights.unsqueeze(1)
-            # print("---check weights_2d : ", weights_2d)
-            gradients_list = torch.tensor(gradients_list)
-            # print("---check gradients_list : ", gradients_list.shape)
-            gradient_global = gradients_list * weights_2d
-            gradient_global = torch.sum(gradient_global, 0)
-
-            cosin_similary_list = [torch.nn.CosineSimilarity(dim=0)(gradient_global, grad_k) for grad_k in gradients_list]
-            print("---check cosin_similary_list : ", cosin_similary_list)
-            if round == 1:
-                self.top20_first10round = np.zeros(shape=(20,))
-            if round <= 10:
-                sorted_idx = [x for _, x in sorted(zip(cosin_similary_list, self.active_clients_indicies), reverse=True)]
-                print("---check sorted_idx : ", sorted_idx)
-                self.top20_first10round[2*(round-1)] = sorted_idx[0]
-                self.top20_first10round[2*(round-1)+1] = sorted_idx[1]
-
-            else: # round == 11
-                print("---check top20 : ", self.top20_first10round)
-
     def run(self, **kwargs):
+        self.top10 = np.array([0, 9, 17, 26, 29, 31, 60, 61, 73, 81])
+        self.the_rest = np.array(list(set([i for i in range(100)]) - set(self.top10)))
         if self.server_config['use_tqdm']:
             round_iterator = tqdm(range(self.rounds + 1, self.server_config['num_rounds'] + 1), desc="Round Progress")
         else:
@@ -209,24 +176,16 @@ class FedNHCS2Server(FedUHServer):
         # round index begin with 1
         for r in round_iterator:
             ####### new CS here :
-            if r <= 10:
-                self.active_clients_indicies = np.arange((r-1)*10, r*10)
-            elif r < 20:
-                rand = shuffle(self.top20_first10round)
-                self.active_clients_indicies = rand[:10]
+            if r <= 50:
+                setup_seed(r + kwargs['global_seed'])
+                num_rest = int((r-1) / 5)
+                num_top = 10 - num_rest
+                top_choice = np.random.choice(self.top10, num_top, replace=False)
+                rest_choice = np.random.choice(self.the_rest, num_rest, replace=False)
+                self.active_clients_indicies = np.concatenate([top_choice, rest_choice], axis=0)
             else:
                 setup_seed(r + kwargs['global_seed'])
                 selected_indices = self.select_clients(self.server_config['participate_ratio'])
-                rand = shuffle(self.top20_first10round)
-                top2_choice = rand[:2]
-                self.active_clients_indicies = np.concatenate([top2_choice, self.active_clients_indicies], axis=0)
-                if top2_choice[0] not in selected_indices:
-                    selected_indices[0] = top2_choice[0]
-                if top2_choice[1] not in selected_indices:
-                    if selected_indices[1] != top2_choice[0]:
-                        selected_indices[1] = top2_choice[1]
-                    else:
-                        selected_indices[0] = top2_choice[1]
                 if self.server_config['drop_ratio'] > 0:
                     # mimic the stragler issues; simply drop them
                     self.active_clients_indicies = np.random.choice(selected_indices, int(
