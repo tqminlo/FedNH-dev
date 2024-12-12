@@ -20,6 +20,8 @@ from src.flbase.strategies.CReFF import CReFFClient, CReFFServer
 from src.flbase.strategies.FedNHAdp import FedNHAdpClient, FedNHAdpServer
 from src.flbase.strategies.FedNHCS import FedNHCSClient, FedNHCSServer
 from src.flbase.strategies.FedNHCS2 import FedNHCS2Client, FedNHCS2Server
+from src.flbase.strategies.FedNHCS3 import FedNHCS3Client, FedNHCS3Server
+from src.flbase.strategies.FedNHCS4 import FedNHCS4Client, FedNHCS4Server
 
 global wandb_installed
 try:
@@ -97,6 +99,18 @@ def run(args):
         hyper_params = f"FedNH_smoothing:{args.FedNH_smoothing}_FedNH_client_adv_prototype_agg:{args.FedNH_client_adv_prototype_agg}"
     elif args.strategy == 'FedNHCS2':
         ClientCstr, ServerCstr = FedNHCS2Client, FedNHCS2Server
+        server_config['FedNH_smoothing'] = args.FedNH_smoothing
+        server_config['FedNH_server_adv_prototype_agg'] = args.FedNH_server_adv_prototype_agg
+        client_config['FedNH_client_adv_prototype_agg'] = args.FedNH_client_adv_prototype_agg
+        hyper_params = f"FedNH_smoothing:{args.FedNH_smoothing}_FedNH_client_adv_prototype_agg:{args.FedNH_client_adv_prototype_agg}"
+    elif args.strategy == 'FedNHCS3':
+        ClientCstr, ServerCstr = FedNHCS3Client, FedNHCS3Server
+        server_config['FedNH_smoothing'] = args.FedNH_smoothing
+        server_config['FedNH_server_adv_prototype_agg'] = args.FedNH_server_adv_prototype_agg
+        client_config['FedNH_client_adv_prototype_agg'] = args.FedNH_client_adv_prototype_agg
+        hyper_params = f"FedNH_smoothing:{args.FedNH_smoothing}_FedNH_client_adv_prototype_agg:{args.FedNH_client_adv_prototype_agg}"
+    elif args.strategy == 'FedNHCS4':
+        ClientCstr, ServerCstr = FedNHCS4Client, FedNHCS4Server
         server_config['FedNH_smoothing'] = args.FedNH_smoothing
         server_config['FedNH_server_adv_prototype_agg'] = args.FedNH_server_adv_prototype_agg
         client_config['FedNH_client_adv_prototype_agg'] = args.FedNH_client_adv_prototype_agg
