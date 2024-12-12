@@ -109,6 +109,7 @@ class FedNHCS3Server(FedUHServer):
             print(f"FedNHServer: the following keys will not be aggregated:\n ", self.exclude_layer_keys)
         self.top10_first10round = np.zeros(shape=(10,))
         self.bot50_first10round = np.zeros(shape=(50,))
+        self.the_rest = np.zeros(shape=(90,))
 
     def aggregate(self, client_uploads, round):
         server_lr = self.server_config['learning_rate'] * (self.server_config['lr_decay_per_round'] ** (round - 1))
@@ -173,33 +174,19 @@ class FedNHCS3Server(FedUHServer):
             for idx, (client_state_dict, prototype_dict) in enumerate(client_uploads):
                 self.server_side_client.set_params(client_state_dict, self.exclude_layer_keys)
                 self.server_side_client.testing(round, testloader=None)  # use global testdataset
-                for state_key in client_state_dict.keys():
-                    if state_key not in self.exclude_layer_keys:
-                        g = client_state_dict[state_key] - self.server_model_state_dict[state_key]
-                        gradient.append(g.cpu().numpy().flatten())
-                gradient = np.concatenate(gradient, axis=0)
-                gradients_list.append(gradient)
-                # print("---check gradient shape : ", gradient.shape)
+                self.gfl_test_acc_dict[round] = self.server_side_client.test_acc_dict[round]
+                acc = self.gfl_test_acc_dict[round]['acc_by_criteria']["uniform"]
+                acc_list.append(acc)
+            print("---check acc_list : ", acc_list)
 
-            weights = torch.tensor([1] * 10)
-            # print("---check weights : ", weights)
-            weights = weights / torch.sum(weights)
-            weights_2d = weights.unsqueeze(1)
-            # print("---check weights_2d : ", weights_2d)
-            gradients_list = torch.tensor(gradients_list)
-            # print("---check gradients_list : ", gradients_list.shape)
-            gradient_global = gradients_list * weights_2d
-            gradient_global = torch.sum(gradient_global, 0)
-            cosin_similary_list = [torch.nn.CosineSimilarity(dim=0)(gradient_global, grad_k) for grad_k in gradients_list]
-            print("---check cosin_similary_list : ", cosin_similary_list)
-
-            sorted_idx = [x for _, x in sorted(zip(cosin_similary_list, self.active_clients_indicies))]
+            sorted_idx = [x for _, x in sorted(zip(acc_list, self.active_clients_indicies))]
             sorted_idx = np.array(sorted_idx)
             print("---check sorted_idx : ", sorted_idx)
             idx_max = sorted_idx[-1]
             self.top10_first10round[round-1] = idx_max
             self.bot50_first10round[(round-1)*5: round*5] = sorted_idx[:5]
-            self.the_rest = set([i for i in range(100)]) - set(self.top10_first10round) - set(self.bot50_first10round)
+            # self.the_rest = set([i for i in range(100)]) - set(self.top10_first10round) - set(self.bot50_first10round)
+            self.the_rest = set([i for i in range(100)]) - set(self.top10_first10round)
             self.the_rest = np.array(list(self.the_rest))
 
     def run(self, **kwargs):
@@ -212,9 +199,9 @@ class FedNHCS3Server(FedUHServer):
             ####### new CS here :
             if r <= 10:
                 self.active_clients_indicies = np.arange((r-1)*10, r*10)
-            elif r <= 110:
+            elif 10 < r <= 60:
                 setup_seed(r + kwargs['global_seed'])
-                num_rest = int((r-11) / 10)
+                num_rest = int((r-11) / 5)
                 num_top = 10 - num_rest
                 top_choice = np.random.choice(self.top10_first10round, num_top, replace=False)
                 rest_choice = np.random.choice(self.the_rest, num_rest, replace=False)
