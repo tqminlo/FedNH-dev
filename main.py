@@ -22,6 +22,8 @@ from src.flbase.strategies.FedNHCS import FedNHCSClient, FedNHCSServer
 from src.flbase.strategies.FedNHCS2 import FedNHCS2Client, FedNHCS2Server
 from src.flbase.strategies.FedNHCS3 import FedNHCS3Client, FedNHCS3Server
 from src.flbase.strategies.FedNHCS4 import FedNHCS4Client, FedNHCS4Server
+from src.flbase.strategies.FedAvgCS3 import FedAvgCS3Client, FedAvgCS3Server
+from src.flbase.strategies.FedAvgCS import FedAvgCSClient, FedAvgCSServer
 
 global wandb_installed
 try:
@@ -73,6 +75,12 @@ def run(args):
 
     if args.strategy == 'FedAvg':
         ClientCstr, ServerCstr = FedAvgClient, FedAvgServer
+        hyper_params = None
+    elif args.strategy == 'FedAvgCS3':
+        ClientCstr, ServerCstr = FedAvgCS3Client, FedAvgCS3Server
+        hyper_params = None
+    elif args.strategy == 'FedAvgCS':
+        ClientCstr, ServerCstr = FedAvgCSClient, FedAvgCSServer
         hyper_params = None
     elif args.strategy == 'FedROD':
         ClientCstr, ServerCstr = FedRODClient, FedRODServer

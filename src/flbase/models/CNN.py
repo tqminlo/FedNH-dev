@@ -421,3 +421,65 @@ class VGG16NH(Model):
             return feature_embedding, logits
         else:
             return logits
+
+
+class ConvMNIST(Model):
+    def __init__(self, config):
+        super().__init__(config)
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=(5, 5))
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=(5, 5))
+        self.pool = nn.MaxPool2d(kernel_size=(2, 2))
+        self.fc1 = nn.Linear(in_features=1024, out_features=512)
+        self.relu = nn.ReLU()
+        # intentionally remove the bias term for the last linear layer for fair comparison
+        self.prototype = nn.Linear(512, config['num_classes'], bias=False)
+
+    def forward(self, x):
+        x = self.pool(self.conv1(x))
+        x = self.pool(self.conv2(x))
+        x = x.view(x.shape[0], -1)
+        x = self.relu(self.fc1(x))
+        logits = self.prototype(x)
+        return logits
+
+    def get_embedding(self, x):
+        x = self.pool(self.conv1(x))
+        x = self.pool(self.conv2(x))
+        x = x.view(x.shape[0], -1)
+        x = self.relu(self.fc1(x))
+        logits = self.prototype(x)
+        return x, logits
+
+
+class ConvMNISTNH(Model):
+    def __init__(self, config):
+        super().__init__(config)
+        self.return_embedding = config['FedNH_return_embedding']
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=(5, 5))
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=(5, 5))
+        self.pool = nn.MaxPool2d(kernel_size=(2, 2))
+        self.fc1 = nn.Linear(in_features=1024, out_features=512)
+        self.relu = nn.ReLU()
+        temp = nn.Linear(512, config['num_classes'], bias=False).state_dict()['weight']
+        self.prototype = nn.Parameter(temp)
+        self.scaling = torch.nn.Parameter(torch.tensor([1.0]))
+
+    def forward(self, x):
+        x = self.pool(self.conv1(x))
+        x = self.pool(self.conv2(x))
+        x = x.view(x.shape[0], -1)
+        feature_embedding = self.relu(self.fc1(x))
+        feature_embedding_norm = torch.norm(feature_embedding, p=2, dim=1, keepdim=True).clamp(min=1e-12)
+        feature_embedding = torch.div(feature_embedding, feature_embedding_norm)
+        if self.prototype.requires_grad == False:
+            normalized_prototype = self.prototype
+        else:
+            prototype_norm = torch.norm(self.prototype, p=2, dim=1, keepdim=True).clamp(min=1e-12)
+            normalized_prototype = torch.div(self.prototype, prototype_norm)
+        logits = torch.matmul(feature_embedding, normalized_prototype.T)
+        logits = self.scaling * logits
+
+        if self.return_embedding:
+            return feature_embedding, logits
+        else:
+            return logits

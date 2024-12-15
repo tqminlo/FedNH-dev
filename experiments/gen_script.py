@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
         print(f"actual/planned:{actual}/{planned}")
 
-    if purpose == 'Cifar':
+    if purpose == 'TinyImageNet':
         strategy_hyper = [('FedAvg', None), ('FedNH', None),
                           ('FedROD', {'FedROD_phead_separate': True}), ('FedProto', None),
                           ('FedRep', None), ('FedBABU', {'FedBABU_finetune_epoch': 5}),
