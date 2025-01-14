@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from sklearn.utils import shuffle
 
 
-class FedNHCS5Client(FedUHClient):
+class FedNHCS6Client(FedUHClient):
     def __init__(self, criterion, trainset, testset, client_config, cid, device, **kwargs):
         super().__init__(criterion, trainset, testset,
                          client_config, cid, device, **kwargs)
@@ -102,7 +102,7 @@ class FedNHCS5Client(FedUHClient):
             return self.new_state_dict, self._estimate_prototype()
 
 
-class FedNHCS5Server(FedUHServer):
+class FedNHCS6Server(FedUHServer):
     def __init__(self, server_config, clients_dict, exclude, **kwargs):
         super().__init__(server_config, clients_dict, exclude, **kwargs)
         if len(self.exclude_layer_keys) > 0:
@@ -110,8 +110,7 @@ class FedNHCS5Server(FedUHServer):
         # self.top10_first10round = np.zeros(shape=(10,))
         # self.the_rest = np.zeros(shape=(90,))
         self.top10_first10round = np.array([0, 9, 17, 26, 29, 31, 60, 61, 73, 81])
-        self.the_rest = set([i for i in range(100)]) - set(self.top10_first10round)
-        self.the_rest = np.array(list(self.the_rest))
+        self.sort_client = np.zeros(shape=(10, 10), dtype=int)
 
     def aggregate(self, client_uploads, round):
         server_lr = self.server_config['learning_rate'] * (self.server_config['lr_decay_per_round'] ** (round - 1))
@@ -174,16 +173,16 @@ class FedNHCS5Server(FedUHServer):
                 [x for _, x in sorted(zip(cosin_similary_list, self.active_clients_indicies), reverse=True)])
             print("---check sorted_idx_grad : ", sorted_idx)
 
+            # Sort
             score_list = torch.tensor(np.array(score_list))
             score_final = [score_list[i] * cosin_similary_list[i] for i in range(len(score_list))]
             sorted_idx = np.array([x for _, x in sorted(zip(score_final, self.active_clients_indicies), reverse=True)])
-            print("---check sorted_idx_grad : ", sorted_idx)
-            idx_max = sorted_idx[0]
-            self.top10_first10round[round - 1] = idx_max
+            print("---check sorted_idx_score : ", sorted_idx)
+            self.sort_client[round-1] = sorted_idx
 
         if round == 10:
-            self.the_rest = set([i for i in range(100)]) - set(self.top10_first10round)
-            self.the_rest = np.array(list(self.the_rest))
+            self.sort_client = self.sort_client.transpose()
+            print("---check self.sort_client : ", self.sort_client)
 
         with torch.no_grad():
             for idx, (client_state_dict, prototype_dict) in enumerate(client_uploads):
@@ -246,13 +245,11 @@ class FedNHCS5Server(FedUHServer):
             ####### new CS here :
             if r <= 10:
                 self.active_clients_indicies = np.arange((r - 1) * 10, r * 10)
-            elif 10 < r <= 60:
-                setup_seed(r + kwargs['global_seed'])
-                num_rest = int((r - 11) / 5)
-                num_top = 10 - num_rest
-                top_choice = np.random.choice(self.top10_first10round, num_top, replace=False)
-                rest_choice = np.random.choice(self.the_rest, num_rest, replace=False)
-                self.active_clients_indicies = np.concatenate([top_choice, rest_choice], axis=0)
+            elif 11 <= r <= 65:
+                # setup_seed(r + kwargs['global_seed'])
+                k = int(np.abs(np.sqrt(2*(r-10)+1/8) - 1/2))
+                residual = int((r-10) - k*(k+1)/2)
+                self.active_clients_indicies = self.sort_client[residual-1] if residual > 0 else self.sort_client[k-1]
             else:
                 setup_seed(r + kwargs['global_seed'])
                 selected_indices = self.select_clients(self.server_config['participate_ratio'])

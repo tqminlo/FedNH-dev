@@ -22,6 +22,8 @@ from src.flbase.strategies.FedNHCS import FedNHCSClient, FedNHCSServer
 from src.flbase.strategies.FedNHCS2 import FedNHCS2Client, FedNHCS2Server
 from src.flbase.strategies.FedNHCS3 import FedNHCS3Client, FedNHCS3Server
 from src.flbase.strategies.FedNHCS4 import FedNHCS4Client, FedNHCS4Server
+from src.flbase.strategies.FedNHCS5 import FedNHCS5Client, FedNHCS5Server
+from src.flbase.strategies.FedNHCS6 import FedNHCS6Client, FedNHCS6Server
 from src.flbase.strategies.FedAvgCS3 import FedAvgCS3Client, FedAvgCS3Server
 from src.flbase.strategies.FedAvgCS import FedAvgCSClient, FedAvgCSServer
 
@@ -119,6 +121,18 @@ def run(args):
         hyper_params = f"FedNH_smoothing:{args.FedNH_smoothing}_FedNH_client_adv_prototype_agg:{args.FedNH_client_adv_prototype_agg}"
     elif args.strategy == 'FedNHCS4':
         ClientCstr, ServerCstr = FedNHCS4Client, FedNHCS4Server
+        server_config['FedNH_smoothing'] = args.FedNH_smoothing
+        server_config['FedNH_server_adv_prototype_agg'] = args.FedNH_server_adv_prototype_agg
+        client_config['FedNH_client_adv_prototype_agg'] = args.FedNH_client_adv_prototype_agg
+        hyper_params = f"FedNH_smoothing:{args.FedNH_smoothing}_FedNH_client_adv_prototype_agg:{args.FedNH_client_adv_prototype_agg}"
+    elif args.strategy == 'FedNHCS5':
+        ClientCstr, ServerCstr = FedNHCS5Client, FedNHCS5Server
+        server_config['FedNH_smoothing'] = args.FedNH_smoothing
+        server_config['FedNH_server_adv_prototype_agg'] = args.FedNH_server_adv_prototype_agg
+        client_config['FedNH_client_adv_prototype_agg'] = args.FedNH_client_adv_prototype_agg
+        hyper_params = f"FedNH_smoothing:{args.FedNH_smoothing}_FedNH_client_adv_prototype_agg:{args.FedNH_client_adv_prototype_agg}"
+    elif args.strategy == 'FedNHCS6':
+        ClientCstr, ServerCstr = FedNHCS6Client, FedNHCS6Server
         server_config['FedNH_smoothing'] = args.FedNH_smoothing
         server_config['FedNH_server_adv_prototype_agg'] = args.FedNH_server_adv_prototype_agg
         client_config['FedNH_client_adv_prototype_agg'] = args.FedNH_client_adv_prototype_agg
