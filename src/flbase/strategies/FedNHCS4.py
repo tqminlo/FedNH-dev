@@ -168,50 +168,6 @@ class FedNHCS4Server(FedUHServer):
             # normalize prototype again
             self.server_model_state_dict['prototype'].copy_(F.normalize(temp, dim=1))
 
-        if round <= 10:
-            # Calculate acc list
-            acc_list = []
-            for idx, (client_state_dict, prototype_dict) in enumerate(client_uploads):
-                self.server_side_client.set_params(client_state_dict, self.exclude_layer_keys)
-                self.server_side_client.testing(round, testloader=None)  # use global testdataset
-                self.gfl_test_acc_dict[round] = self.server_side_client.test_acc_dict[round]
-                acc = self.gfl_test_acc_dict[round]['acc_by_criteria']["uniform"]
-                acc_list.append(acc)
-            print("---check acc_list : ", acc_list)
-            sorted_idx = np.array([x for _, x in sorted(zip(acc_list, self.active_clients_indicies), reverse=True)])
-            print("---check sorted_idx_acc : ", sorted_idx)
-
-            # Calculate gradient list
-            gradients_list = []
-            for idx, (client_state_dict, prototype_dict) in enumerate(client_uploads):
-                gradient = []
-                for state_key in client_state_dict.keys():
-                    if state_key not in self.exclude_layer_keys:
-                        g = client_state_dict[state_key] - self.server_model_state_dict[state_key]
-                        gradient.append(g.cpu().numpy().flatten())
-                gradient = np.concatenate(gradient, axis=0)
-                gradients_list.append(gradient)
-            weights = torch.tensor([1] * 10)
-            weights = weights / torch.sum(weights)
-            weights_2d = weights.unsqueeze(1)
-            gradients_list = torch.tensor(gradients_list)
-            gradient_global = gradients_list * weights_2d
-            gradient_global = torch.sum(gradient_global, 0)
-            cosin_similary_list = [torch.nn.CosineSimilarity(dim=0)(gradient_global, grad_k) for grad_k in
-                                   gradients_list]
-            print("---check cosin_similary_list : ", cosin_similary_list)
-            sorted_idx = np.array([x for _, x in sorted(zip(cosin_similary_list, self.active_clients_indicies), reverse=True)])
-            print("---check sorted_idx_grad : ", sorted_idx)
-
-            acc_grad_list = [acc_list[i] * cosin_similary_list[i] for i in range(len(acc_list))]
-            print("---check acc_grad_list : ", acc_grad_list)
-            sorted_idx = [x for _, x in sorted(zip(acc_grad_list, self.active_clients_indicies), reverse=True)]
-            sorted_idx = np.array(sorted_idx)
-            print("---check sorted_idx : ", sorted_idx)
-
-            for i in range(num_participants):
-                self.sort_10steps[num_rounds_1st_phase*i + round-1] = sorted_idx[i]
-
     def run(self, **kwargs):
         if self.server_config['use_tqdm']:
             round_iterator = tqdm(range(self.rounds + 1, self.server_config['num_rounds'] + 1), desc="Round Progress")
@@ -220,13 +176,9 @@ class FedNHCS4Server(FedUHServer):
         # round index begin with 1
         for r in round_iterator:
             ####### new CS here :
-            if r <= 10:
-                self.active_clients_indicies = np.arange((r-1)*10, r*10)
-            elif r <= 60:
-                num_valid = ((r-6)//5) * 10
-                valid = self.sort_10steps[:num_valid]
-                setup_seed(r + kwargs['global_seed'])
-                self.active_clients_indicies = np.random.choice(valid, 10, replace=False)
+            if r <= 60:
+                res = (r-1) % 10
+                self.active_clients_indicies = np.arange(res*10, (res+1)*10)
             else:
                 setup_seed(r + kwargs['global_seed'])
                 selected_indices = self.select_clients(self.server_config['participate_ratio'])
